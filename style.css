@@ -1,0 +1,37 @@
+body {
+   margin: 0px;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   min-height: 100vh;
+   background-color: #ffb090;
+}
+
+#tabuleiro {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    place-items: center;
+    gap: 10px;
+    padding: 10px;
+    max-width: 50%;
+    box-sizing: border-box;
+    background-color: #a13ac9;
+    border-radius: 15px;
+}
+
+#tabuleiro button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    white-space: nowrap;
+    padding: 20px;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    user-select: none;
+    cursor: pointer;
+    background-color: #712aa9;
+    color: white;
+    border: none;
+    border-radius: 5px;
+}
