@@ -7,7 +7,14 @@ body {
    background-color: #ffb090;
 }
 
-#tabuleiro {
+#jogadores {
+   padding: 10px;
+   max-width: 50%;
+   box-sizing: border-box;
+   border-radius: 10px;
+}
+
+#tab {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     place-items: center;
@@ -19,7 +26,7 @@ body {
     border-radius: 15px;
 }
 
-#tabuleiro button {
+#tab button {
     display: flex;
     justify-content: center;
     align-items: center;

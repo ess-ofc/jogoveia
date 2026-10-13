@@ -9,91 +9,130 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-type Sala struct {
-	J1        *Jogador   // X
-	J2        *Jogador   // Bola
-	tabuleiro [3][3]rune // 0 = ninguém, 'x' = X e 'o' = bola.
-	vez       *Jogador
-}
-
-func NewSala(j1 *Jogador, j2 *Jogador) {
-	sala := Sala{
-		J1: j1,
-		J2: j2,
-	}
-	j1.SalaAtual = &sala
-	j2.SalaAtual = &sala
-	if rand.N(2) == 0 {
-		j1.marca = 'x'
-		j2.marca = 'o'
-	} else {
-		j1.marca = 'x'
-		j2.marca = 'o'
-	}
-	if rand.N(2) == 0 {
-		sala.vez = j1
-	} else {
-		sala.vez = j2
-	}
-
-	websocket.JSON.Send(
-		sala.vez.ws,
-		Msg{
-			Tipo:      "jogar",
-			Tabuleiro: sala.tabuleiro,
-		},
-	)
-}
-
-func (s *Sala) FazerPasse(x, y int) {
-	s.tabuleiro[x][y] = s.vez.marca
-	if s.vez == s.J1 {
-		s.vez = s.J2
-	} else {
-		s.vez = s.J2
-	}
-	websocket.JSON.Send(
-		s.vez.ws,
-		Msg{
-			Tipo:      "jogar",
-			Tabuleiro: s.tabuleiro,
-		},
-	)
-}
-
-type Jogador struct {
-	Apelido   string
-	ws        *websocket.Conn
-	SalaAtual *Sala
-	marca     rune
-}
-
 type Status struct {
 	Apelido string `json:"apelido"`
 	Livre   bool   `json:"livre"`
 }
 
 type Msg struct {
-	Tipo      string     `json:"tipo"`
-	Texto     string     `json:"texto"`
-	Jogadores []Status   `json:"jogadores"`
-	Online    int        `json:"online"`
-	X         int        `json:"x"`
-	Y         int        `json:"y"`
-	Tabuleiro [3][3]rune `json:"tabuleiro"`
+	Tipo      string    `json:"tipo"`
+	Texto     string    `json:"texto"`
+	X         int       `json:"x"`
+	Y         int       `json:"y"`
+	Jogadores []Status  `json:"jogadores"`
+	Vez       string    `json:"vez"`
+	Tab       [3][3]int `json:"tab"`
+}
+
+type Sala struct {
+	mtx         *sync.Mutex
+	j1, j2, vez *Jogador
+	tab         [3][3]int // 0 = niguém, 1 = x, 2 = o
+}
+
+type Jogador struct {
+	apelido string
+	sala    *Sala
+	ws      *websocket.Conn
+	sim     int
 }
 
 var (
-	clientela = make(map[string]Jogador)
-	online    = 0
-	mutex     = &sync.Mutex{}
+	clientela = make(map[string]*Jogador)
+	mtx       = &sync.Mutex{}
 )
 
+func novaSala(j1, j2 *Jogador) {
+	sala := &Sala{
+		j1: j1,
+		j2: j2,
+	}
+	j1.sala, j2.sala = sala, sala
+
+	if rand.N(2) == 0 {
+		j1.sim, j2.sim = 1, 2
+	} else {
+		j1.sim, j2.sim = 2, 1
+	}
+	if rand.N(2) == 0 {
+		sala.vez = j1
+	} else {
+		sala.vez = j2
+	}
+	atualizarLista()
+	sala.atualizar()
+}
+
+func (s *Sala) atualizar() {
+	msg := Msg{
+		Tipo: "tabuleiro",
+		Tab:  s.tab,
+		Vez:  s.vez.apelido,
+	}
+	websocket.JSON.Send(s.j1.ws, msg)
+	websocket.JSON.Send(s.j2.ws, msg)
+}
+
+func (s *Sala) venceu(sim int) bool {
+	for i := range 3 {
+		if s.tab[i][0] == sim && s.tab[i][1] == sim && s.tab[i][2] == sim {
+			return true
+		}
+		if s.tab[0][i] == sim && s.tab[1][i] == sim && s.tab[2][i] == sim {
+			return true
+		}
+	}
+
+	return (s.tab[0][0] == sim && s.tab[1][1] == sim && s.tab[2][2] == sim) ||
+		(s.tab[0][2] == sim && s.tab[1][1] == sim && s.tab[2][0] == sim)
+}
+
+func (s *Sala) cheio() bool {
+	for _, l := range s.tab {
+		for _, c := range l {
+			if c == 0 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (s *Sala) fim(texto string) {
+	msg := Msg{
+		Tipo:  "fim",
+		Texto: texto,
+	}
+	websocket.JSON.Send(s.j1.ws, msg)
+	websocket.JSON.Send(s.j2.ws, msg)
+	s.j1.sala, s.j2.sala = nil, nil
+	atualizarLista()
+}
+
+func (s *Sala) passe(j *Jogador, x, y int) {
+	s.tab[x][y] = s.vez.sim
+
+	if s.venceu(j.sim) {
+		s.fim(j.apelido + " venceu!")
+		return
+	}
+
+	if s.cheio() {
+		s.fim("Deu véia!")
+		return
+	}
+
+	if j == s.j1 {
+		s.vez = s.j2
+	} else {
+		s.vez = s.j1
+	}
+	s.atualizar()
+}
+
 func enviar(msg Msg) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	for _, v := range clientela {
-		websocket.JSON.Send(v.ws, msg)
+	for _, c := range clientela {
+		websocket.JSON.Send(c.ws, msg)
 	}
 }
 
@@ -101,72 +140,70 @@ func atualizarLista() {
 	msg := Msg{
 		Tipo:      "atualizar",
 		Jogadores: make([]Status, 0, len(clientela)),
-		Online:    len(clientela),
 	}
-	for _, v := range clientela {
-		msg.Jogadores = append(
-			msg.Jogadores, Status{
-				Apelido: v.Apelido,
-				Livre:   v.SalaAtual == nil,
-			},
-		)
+	for _, c := range clientela {
+		msg.Jogadores = append(msg.Jogadores, Status{
+			Apelido: c.apelido,
+			Livre:   c.sala == nil,
+		})
 	}
 	enviar(msg)
 }
 
 func gerenciarConexão(ws *websocket.Conn) {
+	apelido := ""
 	defer ws.Close()
 
-	apelido := ""
-
-	// Escutar mensagens.
 	for {
 		var msg Msg
 		err := websocket.JSON.Receive(ws, &msg)
 		if err != nil {
 			if apelido != "" {
-				mutex.Lock()
+				mtx.Lock()
 				delete(clientela, apelido)
-				online = len(clientela)
-				mutex.Unlock()
+				mtx.Unlock()
+
+				atualizarLista()
 			}
 
-			atualizarLista()
 			break
 		}
 
+		mtx.Lock()
 		switch msg.Tipo {
-		case "passe":
-			j := clientela[apelido]
-			if s := j.SalaAtual; s != nil {
-				s.FazerPasse(msg.X, msg.Y)
-			}
-
-			panic("Jogador '" + j.Apelido + "' está sem sala.")
 		case "login":
-			mutex.Lock()
 			_, ok := clientela[msg.Texto]
 			if ok {
 				websocket.JSON.Send(ws, Msg{Tipo: "existe"})
-				mutex.Unlock()
 				break
 			}
 
 			apelido = msg.Texto
-			clientela[apelido] = Jogador{
-				Apelido: apelido,
+			clientela[apelido] = &Jogador{
+				apelido: apelido,
 				ws:      ws,
 			}
-			mutex.Unlock()
-
 			atualizarLista()
 		case "convidar":
-			j := clientela[msg.Texto]
-			websocket.JSON.Send(j.ws, Msg{Tipo: "convite", Texto: apelido})
+			websocket.JSON.Send(
+				clientela[msg.Texto].ws,
+				Msg{Tipo: "convite", Texto: apelido},
+			)
 		case "aceitar":
-			j := clientela[msg.Texto]
-			websocket.JSON.Send(j.ws, Msg{Tipo: "aceitar", Texto: apelido})
+			j1, j2 := clientela[apelido], clientela[msg.Texto]
+			if j2 != nil && j2.sala == nil {
+				novaSala(j1, j2)
+			}
+		case "negar":
+			websocket.JSON.Send(
+				clientela[msg.Texto].ws,
+				Msg{Tipo: "recusar", Texto: apelido},
+			)
+		case "passe":
+			j := clientela[apelido]
+			j.sala.passe(j, msg.X, msg.Y)
 		}
+		mtx.Unlock()
 	}
 }
 
