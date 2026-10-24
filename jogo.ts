@@ -1,188 +1,246 @@
-const convite = document.createElement("dialog")
-const jogadores = document.createElement("div")
-jogadores.id = "jogadores"
-const tabuleiro = document.createElement("div")
-tabuleiro.id = "tab"
+const diálogoDeConvite = document.createElement("dialog")
+diálogoDeConvite.id = "diálogo-de-convite"
+
+const textoDeConvite = document.createElement("h1")
+textoDeConvite.id = "texto-de-convite"
+
+const botãoAceitar = document.createElement("button")
+botãoAceitar.id = "botão-aceitar"
+botãoAceitar.textContent = "Aceitar"
+
+const botãoNegar = document.createElement("button")
+botãoNegar.id = "botão-negar"
+botãoNegar.textContent = "Negar"
+
+diálogoDeConvite.appendChild(textoDeConvite)
+diálogoDeConvite.appendChild(botãoAceitar)
+diálogoDeConvite.appendChild(botãoNegar)
+
+const diálogoDeAlerta = document.createElement("dialog")
+diálogoDeAlerta.id = "diálogo-de-alerta"
+
+const textoDeAlerta = document.createElement("h2")
+textoDeAlerta.id = "texto-de-alerta"
+
+const botãoFecharAlerta = document.createElement("button")
+botãoFecharAlerta.id = "botão-fechar-alerta"
+botãoFecharAlerta.textContent = "OK"
+botãoFecharAlerta.addEventListener("click", () => {
+   diálogoDeAlerta.close()
+})
+
+diálogoDeAlerta.appendChild(textoDeAlerta)
+diálogoDeAlerta.appendChild(botãoFecharAlerta)
+
+const listaDeJogadores = document.createElement("div")
+listaDeJogadores.id = "lista-de-jogadores"
+
+const rótuloDoLobby = document.createElement("h2")
+rótuloDoLobby.id = "rótulo-principal"
+rótuloDoLobby.textContent = "Convide Alguém"
+
+const tabuleiroDoJogo = document.createElement("div")
+tabuleiroDoJogo.id = "tabuleiro-do-jogo"
+
+const rótuloDeVez = document.createElement("h2")
+rótuloDeVez.id = "rótulo-de-vez"
+
+const botãoDesistir = document.createElement("button")
+botãoDesistir.id = "botão-desistir"
+botãoDesistir.textContent = "Desistir"
+botãoDesistir.addEventListener("click", () => {
+   socket.send(JSON.stringify({ tipo: "desistir" }))
+})
+
 const tabZerada = [
    [0, 0, 0],
    [0, 0, 0],
    [0, 0, 0]
 ]
+
 let socket: WebSocket
 let apelido = ""
-let vez = ""
 
-function desenharTabuleiro(valores: number[][], vez: string) {
-   tabuleiro.innerHTML = ""
+function desenharTabuleiro(valores: number[][], vezAtual: string) {
+   tabuleiroDoJogo.innerHTML = ""
    valores.forEach((linha, l) => {
       linha.forEach((coluna, c) => {
-         const b = document.createElement("button")
-         b.disabled = true
+         const botão = document.createElement("button")
+         botão.disabled = true
          if (coluna == 1) {
-            b.textContent = 'x'
+            botão.textContent = "x"
          }
          else if (coluna == 2) {
-            b.textContent = 'o'
+            botão.textContent = "o"
          }
-         else if (vez == apelido) {
-            b.textContent = ''
-            b.addEventListener('click', () => {
+         else if (vezAtual == apelido) {
+            botão.textContent = ""
+            botão.addEventListener("click", () => {
                socket.send(JSON.stringify({ tipo: "passe", x: l, y: c }))
             })
-            b.disabled = false
+            botão.disabled = false
          }
-         tabuleiro.appendChild(b)
-      });
-   });
+         tabuleiroDoJogo.appendChild(botão)
+      })
+   })
 }
 
-function atualizar(lista: { apelido: string, livre: boolean }[]) {
-   jogadores.innerHTML = ""
+function atualizarJogadores(lista: { apelido: string, livre: boolean }[]) {
+   listaDeJogadores.innerHTML = ""
+   listaDeJogadores.appendChild(rótuloDoLobby)
    for (const j of lista) {
       const nome = document.createElement("h3")
-      nome.className = "nome"
+      nome.id = "nome-do-jogador"
       nome.innerText = j.apelido + (j.livre ? "" : " (em partida)")
 
-      const jogador = document.createElement("div")
-      jogador.className = "jogador"
-      jogador.appendChild(nome)
+      const containerJogador = document.createElement("div")
+      containerJogador.id = "container-do-jogador"
+      containerJogador.appendChild(nome)
       if (j.livre && j.apelido != apelido) {
-         const convidar = document.createElement("button")
-         convidar.textContent = "Convidar"
-         convidar.addEventListener("click", () => {
+         const botãoConvidar = document.createElement("button")
+         botãoConvidar.id = "botão-convidar"
+         botãoConvidar.textContent = "Convidar"
+         botãoConvidar.addEventListener("click", () => {
             socket.send(JSON.stringify({ tipo: "convidar", texto: j.apelido }))
          })
 
-         jogador.appendChild(convidar)
+         containerJogador.appendChild(botãoConvidar)
       }
 
-      jogadores.appendChild(jogador)
+      listaDeJogadores.appendChild(containerJogador)
    }
 }
 
-function lar() {
-   const body = document.body
-   body.innerHTML = ""
-   body.append(convite)
-   body.appendChild(jogadores)
-   body.appendChild(tabuleiro)
-   desenharTabuleiro(tabZerada, "")
+function mostrarTelaDeLobby() {
+   const corpo = document.body
+   corpo.innerHTML = ""
+   corpo.appendChild(diálogoDeConvite)
+   corpo.appendChild(diálogoDeAlerta)
+   corpo.appendChild(listaDeJogadores)
 }
 
-function login() {
-   // Página de registro.
+function mostrarTelaDeJogo(valores: number[][], vezAtual: string) {
+   desenharTabuleiro(valores, vezAtual)
+
+   if (vezAtual == apelido) {
+      rótuloDeVez.textContent = "Sua vez!"
+   } else {
+      rótuloDeVez.textContent = `Vez de ${vezAtual}`
+   }
+
+   const telaJogo = document.createElement("div")
+   telaJogo.id = "tela-de-jogo"
+   telaJogo.appendChild(rótuloDeVez)
+   telaJogo.appendChild(tabuleiroDoJogo)
+   telaJogo.appendChild(botãoDesistir)
+
+   const corpo = document.body
+   corpo.innerHTML = ""
+   corpo.appendChild(diálogoDeAlerta)
+   corpo.appendChild(telaJogo)
+}
+
+function mostrarTelaDeLogin() {
    const rótulo = document.createElement("h1")
-   rótulo.id = "rótulo"
+   rótulo.id = "rótulo-principal"
    rótulo.textContent = "Jogo da Véia"
 
-   const campo = document.createElement("input")
-   campo.id = "campo"
-   campo.type = "text"
-   campo.placeholder = "Digite seu apelido"
+   const campoApelido = document.createElement("input")
+   campoApelido.id = "campo-de-apelido"
+   campoApelido.type = "text"
+   campoApelido.placeholder = "Digite seu apelido"
 
-   const enviar = document.createElement("button")
-   enviar.id = "enviar"
-   enviar.type = "submit"
-   enviar.textContent = "Enviar"
+   const botãoEnviar = document.createElement("button")
+   botãoEnviar.id = "botão-enviar"
+   botãoEnviar.type = "submit"
+   botãoEnviar.textContent = "Enviar"
 
-   const erro = document.createElement("p")
-   erro.id = "erro"
+   const mensagemErro = document.createElement("p")
+   mensagemErro.id = "mensagem-de-erro"
 
-   const caixa = document.createElement("form")
-   caixa.id = "registro"
-   caixa.addEventListener("submit", (event) => {
-      event.preventDefault()
-      erro.textContent = ""
+   const formulárioLogin = document.createElement("form")
+   formulárioLogin.id = "formulário-de-login"
+   formulárioLogin.addEventListener("submit", (evento) => {
+      evento.preventDefault()
+      mensagemErro.textContent = ""
 
-      if (campo.value.length < 3) {
-         erro.textContent = "Deve ter no mínimo 3 caracteres."
+      if (campoApelido.value.length < 3) {
+         mensagemErro.textContent = "Deve ter no mínimo 3 caracteres."
+         campoApelido.focus()
          return
       }
 
-      const norma = /^[a-z]+$/
-      if (!norma.test(campo.value)) {
-         erro.textContent =
-            "Sem caracteres especiais," +
-            " sem números," +
-            " sem sublinhados," +
-            " sem espaços," +
-            " sem tudo!" +
-            " Use caracteres de a-z, minúsculo!" +
-            " (é proposital)"
-
-         campo.focus()
-         return
-      }
-
-      apelido = campo.value
+      apelido = campoApelido.value
       socket.send(JSON.stringify({ tipo: "login", texto: apelido }))
-      lar()
-   });
+      mostrarTelaDeLobby()
+   })
 
-   caixa.appendChild(rótulo)
-   caixa.appendChild(campo)
-   caixa.appendChild(enviar)
-   caixa.appendChild(erro)
+   formulárioLogin.appendChild(rótulo)
+   formulárioLogin.appendChild(campoApelido)
+   formulárioLogin.appendChild(botãoEnviar)
+   formulárioLogin.appendChild(mensagemErro)
 
-   // Mostrar.
-   const body = document.body
-   body.innerHTML = ""
-   body.append(convite)
-   body.appendChild(caixa)
+   const corpo = document.body
+   corpo.innerHTML = ""
+   corpo.appendChild(diálogoDeConvite)
+   corpo.appendChild(diálogoDeAlerta)
+   corpo.appendChild(formulárioLogin)
 
-   campo.focus()
+   campoApelido.focus()
 }
 
-const textoDeConvite = document.createElement("h1")
-const aceitar = document.createElement("button")
-aceitar.textContent = "Aceitar"
-const negar = document.createElement("button")
-negar.textContent = "Negar"
-convite.appendChild(textoDeConvite)
-convite.appendChild(aceitar)
-convite.appendChild(negar)
-
 const protocolo = window.location.protocol == "https:" ? "wss://" : "ws://"
-const wsUrl = protocolo + window.location.host + "/ws"
-socket = new WebSocket(wsUrl)
-socket.onmessage = (evento) => {
-   const msg = JSON.parse(evento.data)
-   console.log(evento.data)
+const urlWebSocket = protocolo + window.location.host + "/ws"
+socket = new WebSocket(urlWebSocket)
 
-   switch (msg.tipo) {
+socket.onmessage = (evento) => {
+   const mensagem = JSON.parse(evento.data)
+
+   switch (mensagem.tipo) {
       case "atualizar":
-         atualizar(msg.jogadores)
+         atualizarJogadores(mensagem.jogadores)
          break
       case "existe":
-         alert(`${apelido} já existe.`)
-         login()
+         textoDeAlerta.textContent = `${apelido} já existe.`
+         diálogoDeAlerta.showModal()
+         mostrarTelaDeLogin()
          break
       case "convite":
-         textoDeConvite.textContent = `${msg.texto} te convida.`
-         aceitar.addEventListener("click", () => {
-            convite.close()
-            socket.send(JSON.stringify({ tipo: "aceitar", texto: msg.texto }))
-         })
-         negar.addEventListener("click", () => {
-            convite.close()
-            socket.send(JSON.stringify({ tipo: "negar", texto: msg.texto }))
-         })
-         convite.showModal()
-         setTimeout(() => convite.close(), 15000)
+         textoDeConvite.textContent = `${mensagem.texto} te convida.`
+         botãoAceitar.onclick = () => {
+            diálogoDeConvite.close()
+            socket.send(JSON.stringify({ tipo: "aceitar", texto: mensagem.texto }))
+         }
+         botãoNegar.onclick = () => {
+            diálogoDeConvite.close()
+            socket.send(JSON.stringify({ tipo: "negar", texto: mensagem.texto }))
+         }
+         diálogoDeConvite.showModal()
+         setTimeout(() => diálogoDeConvite.close(), 15000)
          break
       case "tabuleiro":
-         desenharTabuleiro(msg.tab, msg.vez)
+         mostrarTelaDeJogo(mensagem.tab, mensagem.vez)
          break
-      case "fim":
-         alert(msg.texto)
-         desenharTabuleiro(tabZerada, "")
+      case "venceu":
+         textoDeAlerta.textContent = "Você venceu!"
+         diálogoDeAlerta.showModal()
+         mostrarTelaDeLobby()
+         break
+      case "perdeu":
+         textoDeAlerta.textContent = "Você perdeu..."
+         diálogoDeAlerta.showModal()
+         mostrarTelaDeLobby()
+         break
+      case "velha":
+         textoDeAlerta.textContent = "É véia!"
+         diálogoDeAlerta.showModal()
+         mostrarTelaDeLobby()
          break
    }
 }
 
 socket.onopen = () => {
-   login()
+   mostrarTelaDeLogin()
 }
 
-login()
-
+mostrarTelaDeLogin()

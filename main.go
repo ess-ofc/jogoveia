@@ -98,13 +98,19 @@ func (s *Sala) cheio() bool {
 	return true
 }
 
-func (s *Sala) fim(texto string) {
-	msg := Msg{
-		Tipo:  "fim",
-		Texto: texto,
+func (s *Sala) fim(j *Jogador) {
+	if j == nil {
+		websocket.JSON.Send(s.j1.ws, Msg{Tipo: "velha"})
+		websocket.JSON.Send(s.j2.ws, Msg{Tipo: "velha"})
+	} else {
+		websocket.JSON.Send(j.ws, Msg{Tipo: "venceu"})
+		if j == s.j1 {
+			websocket.JSON.Send(s.j2.ws, Msg{Tipo: "perdeu"})
+		} else {
+			websocket.JSON.Send(s.j1.ws, Msg{Tipo: "perdeu"})
+		}
 	}
-	websocket.JSON.Send(s.j1.ws, msg)
-	websocket.JSON.Send(s.j2.ws, msg)
+
 	s.j1.sala, s.j2.sala = nil, nil
 	atualizarLista()
 }
@@ -113,12 +119,12 @@ func (s *Sala) passe(j *Jogador, x, y int) {
 	s.tab[x][y] = s.vez.sim
 
 	if s.venceu(j.sim) {
-		s.fim(j.apelido + " venceu!")
+		s.fim(j)
 		return
 	}
 
 	if s.cheio() {
-		s.fim("Deu véia!")
+		s.fim(nil)
 		return
 	}
 
@@ -160,6 +166,13 @@ func gerenciarConexão(ws *websocket.Conn) {
 		if err != nil {
 			if apelido != "" {
 				mtx.Lock()
+				if j := clientela[apelido]; j.sala != nil {
+					if j == j.sala.j1 {
+						j.sala.fim(j.sala.j2)
+					} else {
+						j.sala.fim(j.sala.j1)
+					}
+				}
 				delete(clientela, apelido)
 				mtx.Unlock()
 
@@ -202,6 +215,13 @@ func gerenciarConexão(ws *websocket.Conn) {
 		case "passe":
 			j := clientela[apelido]
 			j.sala.passe(j, msg.X, msg.Y)
+		case "desistir":
+			j := clientela[apelido]
+			if j == j.sala.j1 {
+				j.sala.fim(j.sala.j2)
+			} else {
+				j.sala.fim(j.sala.j1)
+			}
 		}
 		mtx.Unlock()
 	}
