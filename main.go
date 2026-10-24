@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"sync"
+	"os"
 
 	"golang.org/x/net/websocket"
 )
@@ -228,6 +229,11 @@ func gerenciarConexão(ws *websocket.Conn) {
 }
 
 func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	wsServer := websocket.Server{
 		Handler: websocket.Handler(gerenciarConexão),
 		Handshake: func(confg *websocket.Config, r *http.Request) error {
@@ -245,5 +251,5 @@ func main() {
 	})
 
 	fmt.Println("Servindo...")
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":"+port, nil)
 }
