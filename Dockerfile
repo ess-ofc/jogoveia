@@ -15,6 +15,11 @@ WORKDIR /app
 
 COPY --from=builder /app/server .
 
+COPY index.html ./
+COPY jogo.js ./
+COPY style.css ./
+COPY icon.png ./
+
 EXPOSE 8080
 
 CMD ["./server"]
