@@ -250,6 +250,6 @@ func main() {
 		http.ServeFile(w, r, "index.html")
 	})
 
-	fmt.Println("Servindo...")
-	http.ListenAndServe(":"+port, nil)
+	fmt.Println("Servindo na porta", port)
+	http.ListenAndServe("0.0.0.0:"+port, nil)
 }
