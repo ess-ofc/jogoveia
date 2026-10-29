@@ -251,3 +251,6 @@ socket.onopen = () => {
    mostrarTelaDeLogin()
 }
 
+if ('serviceWorker' in navigator) {
+   navigator.serviceWorker.register("./sw.js")
+}

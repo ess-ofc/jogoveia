@@ -17,6 +17,7 @@ COPY --from=builder /app/server .
 
 COPY index.html ./
 COPY jogo.js ./
+COPY sw.js ./
 COPY style.css ./
 COPY icon.png ./
 
