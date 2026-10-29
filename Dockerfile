@@ -15,6 +15,7 @@ WORKDIR /app
 
 COPY --from=builder /app/server .
 
+COPY manifest.json ./
 COPY index.html ./
 COPY jogo.js ./
 COPY sw.js ./
