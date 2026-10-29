@@ -39,11 +39,6 @@ botãoDesistir.textContent = "Desistir";
 botãoDesistir.addEventListener("click", () => {
     socket.send(JSON.stringify({ tipo: "desistir" }));
 });
-const tabZerada = [
-    [0, 0, 0],
-    [0, 0, 0],
-    [0, 0, 0]
-];
 let socket;
 let apelido = "";
 function desenharTabuleiro(valores, vezAtual) {
@@ -75,7 +70,7 @@ function atualizarJogadores(lista) {
     for (const j of lista) {
         const nome = document.createElement("h3");
         nome.id = "nome-do-jogador";
-        nome.innerText = j.apelido + (j.livre ? "" : " (em partida)");
+        nome.textContent = j.apelido + (j.livre ? "" : " (em partida)");
         const containerJogador = document.createElement("div");
         containerJogador.id = "container-do-jogador";
         containerJogador.appendChild(nome);
@@ -135,12 +130,12 @@ function mostrarTelaDeLogin() {
     formulárioLogin.addEventListener("submit", (evento) => {
         evento.preventDefault();
         mensagemErro.textContent = "";
-        if (campoApelido.value.length < 3) {
+        apelido = campoApelido.value.trim();
+        if (apelido.length < 3) {
             mensagemErro.textContent = "Deve ter no mínimo 3 caracteres.";
             campoApelido.focus();
             return;
         }
-        apelido = campoApelido.value;
         socket.send(JSON.stringify({ tipo: "login", texto: apelido }));
         mostrarTelaDeLobby();
     });
@@ -165,9 +160,9 @@ socket.onmessage = (evento) => {
             atualizarJogadores(mensagem.jogadores);
             break;
         case "existe":
+            mostrarTelaDeLogin();
             textoDeAlerta.textContent = `${apelido} já existe.`;
             diálogoDeAlerta.showModal();
-            mostrarTelaDeLogin();
             break;
         case "convite":
             textoDeConvite.textContent = `${mensagem.texto} te convida.`;
@@ -187,22 +182,33 @@ socket.onmessage = (evento) => {
             break;
         case "venceu":
             textoDeAlerta.textContent = "Você venceu!";
+            diálogoDeAlerta.onclose = () => {
+                mostrarTelaDeLobby();
+            };
             diálogoDeAlerta.showModal();
-            mostrarTelaDeLobby();
+            setTimeout(() => diálogoDeAlerta.close(), 10000);
             break;
         case "perdeu":
             textoDeAlerta.textContent = "Você perdeu...";
+            diálogoDeAlerta.onclose = () => {
+                mostrarTelaDeLobby();
+            };
             diálogoDeAlerta.showModal();
-            mostrarTelaDeLobby();
+            setTimeout(() => diálogoDeAlerta.close(), 10000);
             break;
         case "velha":
             textoDeAlerta.textContent = "É véia!";
+            diálogoDeAlerta.onclose = () => {
+                mostrarTelaDeLobby();
+            };
             diálogoDeAlerta.showModal();
-            mostrarTelaDeLobby();
+            setTimeout(() => diálogoDeAlerta.close(), 10000);
             break;
     }
+};
+socket.onclose = () => {
+    window.location.reload();
 };
 socket.onopen = () => {
     mostrarTelaDeLogin();
 };
-mostrarTelaDeLogin();
