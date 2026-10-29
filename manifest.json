@@ -1,0 +1,16 @@
+{
+  "name": "Jogo da Véia",
+  "short_name": "jogoveia",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffe0bd",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "icon.png",
+      "type": "image/png",
+      "sizes": "256x256",
+      "purpose": "any maskable"
+    }
+  ]
+}
